@@ -1,0 +1,77 @@
+version: "3"
+services:
+  zookeeper:
+    image: debezium/zookeeper:1.0
+    restart: always
+    ports:
+      - 2181:2181
+      - 2888:2888
+      - 3888:3888
+
+  kafka:
+    image: debezium/kafka:1.0
+    restart: always
+    ports:
+      - 9092:9092
+    links:
+      - zookeeper
+    environment:
+      - ZOOKEEPER_CONNECT=zookeeper:2181
+
+  postgres:
+    build: ./postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DATABASE=test_db
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ulimits: 
+      memlock:
+        soft: -1 
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add: 
+      - IPC_LOCK
+    volumes:
+      - elasticsearch-data-volume:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+  connect:
+    build: ./debezium-jdbc-es
+    restart: always
+    ports:
+      - 8083:8083
+      - 5005:5005
+    links:
+      - kafka
+      - postgres
+      - elasticsearch
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:9092
+      - GROUP_ID=1
+      - CONFIG_STORAGE_TOPIC=my_connect_configs
+      - OFFSET_STORAGE_TOPIC=my_connect_offsets
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.12.0
+    restart: always
+    environment:
+      SERVER_NAME: kibana
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+volumes: 
+  elasticsearch-data-volume:
+    driver: local
