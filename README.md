@@ -1,4 +1,4 @@
-# Sync PostgreSQL with Elasticsearch via Debezium
+# Sync PostgreSQL with Elasticsearch 7.x via Debezium
 
 ### Schema
 
